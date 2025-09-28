@@ -17,7 +17,18 @@ export async function POST(request: Request) {
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
-        module: { include: { course: { enrollments: { where: { userId: session.userId } } } } },
+        module: {
+          include: {
+            course: {
+              include: {
+                enrollments: {
+                  where: { userId: session.userId },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -25,9 +36,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Lesson not found' }, { status: 404 });
     }
 
-    const isEnrolled = lesson.module.course.enrollments.some(
-      (enrollment: { userId: string }) => enrollment.userId === session.userId,
-    );
+    const enrollment = lesson.module.course.enrollments[0];
+    const isEnrolled = Boolean(enrollment && enrollment.userId === session.userId);
     if (!isEnrolled && !lesson.isPreviewable) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
@@ -39,7 +49,7 @@ export async function POST(request: Request) {
       userEmail: (await prisma.user.findUnique({ where: { id: session.userId } }))?.email ?? 'student@tradingcoach.in',
       userAgent: request.headers.get('user-agent') ?? undefined,
       ipAddress: request.headers.get('x-forwarded-for') ?? undefined,
-      watermark: lesson.watermarkText,
+      watermark: lesson.watermarkText ?? undefined,
     });
 
     return NextResponse.json({ success: true, ...payload });

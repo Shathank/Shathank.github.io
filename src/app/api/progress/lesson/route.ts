@@ -19,7 +19,14 @@ export async function POST(request: Request) {
       include: {
         module: {
           include: {
-            course: { enrollments: { where: { userId: session.userId } } },
+            course: {
+              include: {
+                enrollments: {
+                  where: { userId: session.userId },
+                  take: 1,
+                },
+              },
+            },
           },
         },
       },

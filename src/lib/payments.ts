@@ -39,13 +39,13 @@ export const createCheckoutOrder = async ({
 
   await prisma.payment.create({
     data: {
-      userId,
       amount,
       currency,
       paymentType,
       status: 'PENDING',
       razorpayOrderId: order.id,
-      courseId,
+      user: { connect: { id: userId } },
+      course: { connect: { id: courseId } },
     },
   });
 
