@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
-import { prisma } from '../lib/prisma';
+import { prismaOptional } from '../lib/prisma';
 import { formatCurrency } from '../lib/utils';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -66,12 +66,25 @@ type ModuleWithLessons = {
 };
 
 export default async function Home() {
-  const course = await prisma.course.findFirst({
-    where: { isPublished: true },
-    include: { modules: { include: { lessons: true } } },
-  });
+  let course = null;
+  let posts: Awaited<ReturnType<typeof getFeaturedPosts>> = [];
 
-  const posts = await getFeaturedPosts(2);
+  if (prismaOptional) {
+    try {
+      course = await prismaOptional.course.findFirst({
+        where: { isPublished: true },
+        include: { modules: { include: { lessons: true } } },
+      });
+    } catch (error) {
+      console.error('[home] Failed to fetch course from database', error);
+    }
+  }
+
+  try {
+    posts = await getFeaturedPosts(2);
+  } catch (error) {
+    console.error('[home] Failed to load featured posts', error);
+  }
 
   const courseModules = (course?.modules ?? []) as ModuleWithLessons[];
   const totalLessons = courseModules.reduce((count, module) => count + module.lessons.length, 0);

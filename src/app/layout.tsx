@@ -4,7 +4,7 @@ import './globals.css';
 import { Header } from '../components/layout/header';
 import { Footer } from '../components/layout/footer';
 import { getSession } from '../lib/session';
-import { prisma } from '../lib/prisma';
+import { prismaOptional } from '../lib/prisma';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -50,12 +50,19 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
-  const user = session ? await prisma.user.findUnique({ where: { id: session.userId } }) : null;
+  let user: { name: string | null; email: string } | null = null;
+
+  if (session && prismaOptional) {
+    const record = await prismaOptional.user.findUnique({ where: { id: session.userId } });
+    if (record) {
+      user = { name: record.name, email: record.email };
+    }
+  }
 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} bg-slate-50 text-slate-900 antialiased`}>
-        <Header user={user ? { name: user.name, email: user.email } : null} />
+        <Header user={user} />
         <main className="min-h-[70vh] bg-slate-50/80">
           {children}
         </main>

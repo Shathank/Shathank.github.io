@@ -1,14 +1,18 @@
-import { prisma } from '../src/lib/prisma';
+import { prismaOptional, isDatabaseEnabled } from '../src/lib/prisma';
 import { createSlug } from '../src/lib/utils';
 import { ensureAdminSeedUser } from '../src/lib/auth';
 
 const seed = async () => {
+  if (!isDatabaseEnabled || !prismaOptional) {
+    throw new Error('Cannot seed database because DATABASE_URL is not configured.');
+  }
+
   await ensureAdminSeedUser();
 
   const courseTitle = 'Trading Course India: Professional Derivatives & Swing Trading Mastery';
   const slug = createSlug(courseTitle);
 
-  const course = await prisma.course.upsert({
+  const course = await prismaOptional.course.upsert({
     where: { slug },
     update: {
       description:
@@ -124,5 +128,7 @@ seed()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    if (prismaOptional) {
+      await prismaOptional.$disconnect();
+    }
   });

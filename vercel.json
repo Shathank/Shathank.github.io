@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "name": "emporiotrading",
+  "framework": "nextjs",
+  "regions": ["bom1"],
+  "github": {
+    "silent": true
+  },
+  "domains": [
+    "emporiotrading.me",
+    "www.emporiotrading.me"
+  ]
+}

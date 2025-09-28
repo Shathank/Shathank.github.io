@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
-import { prisma } from '../../../lib/prisma';
+import { prismaOptional, isDatabaseEnabled } from '../../../lib/prisma';
 import { getSession } from '../../../lib/session';
 import { formatCurrency } from '../../../lib/utils';
 import { Card } from '../../../components/ui/card';
 import { CheckoutForm } from '../../../components/checkout-form';
+import { getFallbackCourseBySlug } from '../../../lib/fallback-data';
 
 export const metadata = {
   title: 'Secure Checkout',
@@ -16,12 +17,14 @@ export default async function CheckoutPage({ params }: { params: { slug: string 
     redirect(`/login?next=/checkout/${params.slug}`);
   }
 
-  const course = await prisma.course.findUnique({ where: { slug: params.slug } });
+  const course = isDatabaseEnabled && prismaOptional
+    ? await prismaOptional.course.findUnique({ where: { slug: params.slug } })
+    : getFallbackCourseBySlug(params.slug);
   if (!course) {
     redirect('/courses');
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.userId } });
+  const user = isDatabaseEnabled && prismaOptional ? await prismaOptional.user.findUnique({ where: { id: session.userId } }) : null;
   const amount = course.salePrice ?? course.price;
   const priceDisplay = formatCurrency(amount, course.currency);
 

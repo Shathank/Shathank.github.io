@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { prisma } from '../../../lib/prisma';
+import { prismaOptional, isDatabaseEnabled } from '../../../lib/prisma';
 import { formatCurrency } from '../../../lib/utils';
 import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
+import { getFallbackCourseBySlug } from '../../../lib/fallback-data';
 
 const faqs = [
   {
@@ -28,7 +29,7 @@ const faqs = [
 ];
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const course = await prisma.course.findUnique({ where: { slug: params.slug } });
+  const course = isDatabaseEnabled && prismaOptional ? await prismaOptional.course.findUnique({ where: { slug: params.slug } }) : getFallbackCourseBySlug(params.slug);
   return {
     title: course ? `${course.title} — Course Overview` : 'Course',
     description: course?.seoDescription ?? course?.subtitle ?? 'Professional trading curriculum built for Indian markets.',
@@ -36,10 +37,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function CourseDetailPage({ params }: { params: { slug: string } }) {
-  const course = await prisma.course.findUnique({
-    where: { slug: params.slug },
-    include: { modules: { include: { lessons: true }, orderBy: { order: 'asc' } } },
-  });
+  const course = isDatabaseEnabled && prismaOptional
+    ? await prismaOptional.course.findUnique({
+        where: { slug: params.slug },
+        include: { modules: { include: { lessons: true }, orderBy: { order: 'asc' } } },
+      })
+    : getFallbackCourseBySlug(params.slug);
 
   if (!course || !course.isPublished) {
     notFound();

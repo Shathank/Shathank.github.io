@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '../../../../lib/prisma';
+import { prismaOptional, isDatabaseEnabled } from '../../../../lib/prisma';
 import { requireSession } from '../../../../lib/session';
 
 const schema = z.object({
@@ -10,6 +10,14 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    if (!isDatabaseEnabled || !prismaOptional) {
+      return NextResponse.json(
+        { success: false, error: 'Lesson progress service is temporarily unavailable.' },
+        { status: 503 },
+      );
+    }
+
+    const prisma = prismaOptional;
     const session = await requireSession();
     const body = await request.json();
     const { lessonId, watched } = schema.parse(body);

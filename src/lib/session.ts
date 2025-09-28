@@ -12,16 +12,15 @@ export type SessionPayload = {
   deviceHash: string;
 };
 
-const getSecret = () => {
-  const secret = process.env.JWT_SECRET;
+const getSecret = () => process.env.JWT_SECRET;
+
+export const createSession = async (payload: SessionPayload) => {
+  const secret = getSecret();
   if (!secret) {
     throw new Error('JWT_SECRET is not configured');
   }
-  return secret;
-};
 
-export const createSession = async (payload: SessionPayload) => {
-  const token = jwt.sign(payload, getSecret(), {
+  const token = jwt.sign(payload, secret, {
     expiresIn: SESSION_TTL_SECONDS,
   });
 
@@ -40,8 +39,14 @@ export const getSession = async (): Promise<SessionPayload | null> => {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
 
+  const secret = getSecret();
+  if (!secret) {
+    cookieStore.delete(SESSION_COOKIE_NAME);
+    return null;
+  }
+
   try {
-    return jwt.verify(token, getSecret()) as SessionPayload;
+    return jwt.verify(token, secret) as SessionPayload;
   } catch {
     cookieStore.delete(SESSION_COOKIE_NAME);
     return null;
