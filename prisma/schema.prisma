@@ -1,0 +1,309 @@
+// Prisma schema for the trading course platform
+// Uses SQLite for local development. Switch to PostgreSQL/MySQL in production by updating the datasource.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+  AFFILIATE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentType {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum VideoProvider {
+  VDOCIPHER
+  VIMEO
+  CUSTOM
+}
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  name             String?
+  phone            String?          @unique
+  avatarUrl        String?
+  role             UserRole         @default(STUDENT)
+  isEmailVerified  Boolean          @default(false)
+  lastLoginAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  otpTokens        OtpToken[]
+  enrollments      Enrollment[]
+  payments         Payment[]
+  deviceSessions   DeviceSession[]
+  certificates     Certificate[]
+  affiliateProfile AffiliateProfile?
+  leads            Lead[]
+  referrals        Referral[]       @relation("UserReferrals")
+  referredUsers    Referral[]       @relation("ReferredUsers")
+  videoAccessLogs  VideoAccessLog[]
+  notifications    NotificationLog[]
+}
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  context   String   @default("LOGIN")
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@index([email, context])
+}
+
+model Course {
+  id             String      @id @default(uuid())
+  slug           String      @unique
+  title          String
+  subtitle       String?
+  description    String
+  heroImageUrl   String?
+  promoVideoId   String?
+  promoVideoProvider VideoProvider @default(VDOCIPHER)
+  price          Int
+  salePrice      Int?
+  currency       String       @default("INR")
+  level          String?
+  durationInMin  Int?
+  tags           Json?
+  isPublished    Boolean      @default(false)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  modules        Module[]
+  enrollments    Enrollment[]
+  certificates   Certificate[]
+  blogPosts      BlogPost[]
+  referrals      Referral[]
+  payments       Payment[]
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  course      Course   @relation(fields: [courseId], references: [id])
+  courseId    String
+  title       String
+  description String?
+  order       Int
+  lessons     Lesson[]
+
+  @@unique([courseId, order])
+}
+
+model Lesson {
+  id             String        @id @default(uuid())
+  module         Module        @relation(fields: [moduleId], references: [id])
+  moduleId       String
+  title          String
+  summary        String?
+  order          Int
+  videoProvider  VideoProvider @default(VDOCIPHER)
+  videoId        String
+  durationInMin  Int?
+  resourceUrl    String?
+  isPreviewable  Boolean       @default(false)
+  watermarkText  String?
+  createdAt      DateTime      @default(now())
+  lessonProgress LessonProgress[]
+  videoAccessLogs VideoAccessLog[]
+
+  @@unique([moduleId, order])
+}
+
+model Enrollment {
+  id             String            @id @default(uuid())
+  user           User              @relation(fields: [userId], references: [id])
+  userId         String
+  course         Course            @relation(fields: [courseId], references: [id])
+  courseId       String
+  status         EnrollmentStatus  @default(ACTIVE)
+  progress       Float             @default(0)
+  enrolledAt     DateTime          @default(now())
+  completedAt    DateTime?
+  certificate    Certificate?
+  payments       Payment[]
+  lessonProgress LessonProgress[]
+
+  @@unique([userId, courseId])
+}
+
+model LessonProgress {
+  id           String     @id @default(uuid())
+  lesson       Lesson     @relation(fields: [lessonId], references: [id])
+  lessonId     String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollmentId String
+  watched      Boolean    @default(false)
+  watchedAt    DateTime?
+  progress     Float      @default(0)
+
+  @@unique([lessonId, enrollmentId])
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  user               User          @relation(fields: [userId], references: [id])
+  userId             String
+  enrollment         Enrollment?   @relation(fields: [enrollmentId], references: [id])
+  enrollmentId       String?
+  course             Course?       @relation(fields: [courseId], references: [id])
+  courseId           String?
+  amount             Int
+  currency           String        @default("INR")
+  status             PaymentStatus @default(PENDING)
+  paymentType        PaymentType   @default(ONE_TIME)
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  razorpaySignature  String?
+  failureReason      String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model DeviceSession {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  deviceHash String
+  userAgent  String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  lastActive DateTime @updatedAt
+
+  @@index([userId, deviceHash])
+}
+
+model Certificate {
+  id                String     @id @default(uuid())
+  certificateNumber String     @unique
+  user              User       @relation(fields: [userId], references: [id])
+  userId            String
+  course            Course     @relation(fields: [courseId], references: [id])
+  courseId          String
+  issuedAt          DateTime   @default(now())
+  pdfUrl            String?
+  enrollment        Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollmentId      String     @unique
+}
+
+model AffiliateProfile {
+  id               String          @id @default(uuid())
+  user             User            @relation(fields: [userId], references: [id])
+  userId           String         @unique
+  code             String         @unique
+  commissionRate   Float          @default(0.15)
+  totalEarned      Int            @default(0)
+  totalPaid        Int            @default(0)
+  referrals        Referral[]
+  payouts          AffiliatePayout[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Referral {
+  id                  String            @id @default(uuid())
+  affiliateProfile    AffiliateProfile? @relation(fields: [affiliateProfileId], references: [id])
+  affiliateProfileId  String?
+  referredUser        User?             @relation("ReferredUsers", fields: [referredUserId], references: [id])
+  referredUserId      String?
+  referrer            User?             @relation("UserReferrals", fields: [referrerId], references: [id])
+  referrerId          String?
+  course              Course            @relation(fields: [courseId], references: [id])
+  courseId            String
+  commissionAmount    Int               @default(0)
+  status              String            @default("PENDING")
+  createdAt           DateTime          @default(now())
+}
+
+model AffiliatePayout {
+  id                String            @id @default(uuid())
+  affiliateProfile  AffiliateProfile  @relation(fields: [affiliateProfileId], references: [id])
+  affiliateProfileId String
+  amount            Int
+  status            String            @default("PENDING")
+  payoutDate        DateTime?
+  createdAt         DateTime          @default(now())
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  email     String
+  name      String?
+  phone     String?
+  source    String   @default("NEWSLETTER")
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@unique([email, source])
+}
+
+model BlogPost {
+  id          String   @id @default(uuid())
+  course      Course?  @relation(fields: [courseId], references: [id])
+  courseId    String?
+  slug        String   @unique
+  title       String
+  excerpt     String
+  body        String
+  tags        Json?
+  published   Boolean  @default(false)
+  readingTime Int?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model VideoAccessLog {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id])
+  lessonId    String
+  deviceHash  String
+  ipAddress   String?
+  accessedAt  DateTime @default(now())
+  otpId       String?
+
+  @@index([userId, lessonId])
+}
+
+model NotificationLog {
+  id          String   @id @default(uuid())
+  user        User?    @relation(fields: [userId], references: [id])
+  userId      String?
+  channel     String
+  type        String
+  payload     Json?
+  sentAt      DateTime @default(now())
+  success     Boolean  @default(true)
+  error       String?
+}

@@ -1,0 +1,11 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Emporio Trading Logo</title>
+  <desc id="desc">Green square background with the word Emporio trading in white.</desc>
+  <rect width="500" height="500" fill="#0f5c3a" rx="24" />
+  <g fill="#ffffff" font-family="'Poppins', 'Segoe UI', sans-serif" font-weight="700" textLength="0">
+    <text x="80" y="250" font-size="120" letter-spacing="4">Emporio</text>
+    <circle cx="385" cy="200" r="12" />
+    <circle cx="425" cy="250" r="12" />
+  </g>
+  <text x="88" y="325" font-size="38" fill="#ffffff" font-family="'Poppins', 'Segoe UI', sans-serif" letter-spacing="20">TRADING</text>
+</svg>
